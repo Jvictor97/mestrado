@@ -1,6 +1,5 @@
 import pyrealsense2 as rs
 import numpy as np
-from scipy import ndimage
 import math
 import cv2
 import os, psutil
