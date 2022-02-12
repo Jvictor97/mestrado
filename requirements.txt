@@ -1,4 +1,4 @@
 pyrealsense2
 numpy
-scipy
-cv2
+opencv-python
+psutil
