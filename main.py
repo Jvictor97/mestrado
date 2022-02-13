@@ -2,7 +2,6 @@ import pyrealsense2 as rs
 import numpy as np
 import math
 import cv2
-import os, psutil
 
 pipeline = rs.pipeline()
 config = rs.config()
@@ -38,13 +37,18 @@ print('clipping_distance', clipping_distance)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-frames_to_save = list()
+frame_count = 0
+dataset_root = './images/dataset'
+centroids_file = open(f'{dataset_root}/centroids.txt', 'w+')
 
-def capture_depth_frames(depth_frame):
-    frames_to_save.append(depth_frame)
-    print('frames', len(frames_to_save))
-    process = psutil.Process(os.getpid())
-    print('Memória em MB:', process.memory_info().rss / 1024 ** 2) 
+def capture_depth_frame(depth_frame, centroid):
+    global frame_count, centroids_file
+    print('centroid', centroid)
+    file_name = f'{dataset_root}/frame_{frame_count}.txt'
+    centroids_file.write(centroid)
+    centroids_file.flush()
+    np.savetxt(file_name, depth_frame, fmt='%.6f')
+    frame_count += 1
 
 try:
     while True:
@@ -69,12 +73,13 @@ try:
         depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
         bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), background_color, color_image)
 
-        mass_x, mass_y = np.where((depth_image > 0) & (depth_image < clipping_distance))
+        mass_y, mass_x = np.where((depth_image > 0) & (depth_image < clipping_distance))
 
         if (len(mass_x) and len(mass_y)):
-            center_x = np.average(mass_x)
-            center_y = np.average(mass_y)
-            bg_removed = cv2.circle(bg_removed, center=(math.ceil(center_y), math.ceil(center_x)), radius=2, color=(0, 0, 255), thickness=-1)
+            center_x = math.ceil(np.average(mass_x))
+            center_y = math.ceil(np.average(mass_y))
+            center_z = aligned_depth_frame.get_distance(center_x, center_y)
+            bg_removed = cv2.circle(bg_removed, center=(center_x, center_y), radius=2, color=(0, 0, 255), thickness=-1)
 
         # Render images:
         #   depth align to color on left
@@ -89,11 +94,13 @@ try:
         key = cv2.waitKey(1)
 
         if key == 13:
-            capture_depth_frames(depth_image.copy())
+            centroid = '%.6f %.6f %.6f\n' % (center_x, center_y, center_z)
+            capture_depth_frame(depth_image.copy(), centroid)
         elif key == 27:
             cv2.destroyAllWindows()
             break
 finally:
+    centroids_file.close()
     pipeline.stop()
 
 
