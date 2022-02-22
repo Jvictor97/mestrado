@@ -87,14 +87,14 @@ try:
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET) # cv2.convertScaleAbs(depth_image_3d, alpha=0.03) #        
         images = np.hstack((bg_removed, depth_colormap))
         
-        cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('Align Example', 1280, 480)
-        cv2.imshow('Align Example', images)
+        cv2.namedWindow('exercise-recorder', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('exercise-recorder', 1280, 480)
+        cv2.imshow('exercise-recorder', images)
         
         key = cv2.waitKey(1)
 
         if key == 13:
-            centroid = '%.6f %.6f %.6f\n' % (center_x, center_y, center_z)
+            centroid = '%.6f %.6f %.6f\n' % (center_x, center_y, center_z * 1000)
             capture_depth_frame(depth_image.copy(), centroid)
         elif key == 27:
             cv2.destroyAllWindows()
