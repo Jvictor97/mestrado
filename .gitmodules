@@ -1,0 +1,3 @@
+[submodule "awr"]
+	path = awr
+	url = https://github.com/Jvictor97/AWR-Adaptive-Weighting-Regression.git
