@@ -1,3 +1,6 @@
 *.png
 *.jpg
 center_test_refined.txt
+*.zip
+frame_*.txt
+centroids.txt
