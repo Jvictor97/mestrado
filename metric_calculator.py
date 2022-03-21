@@ -24,7 +24,7 @@ class MetricCalculator:
     return mean_per_joint_error
 
   def fetch_joints(self, root_path, grasp_name, date):
-    full_path =  f'{root_path}/{grasp_name}' if date is None else f'{root_path}/{date}/{grasp_name}'
+    full_path =  f'{root_path}/{grasp_name}.txt' if date is None else f'{root_path}/{date}/{grasp_name}.txt'
 
     return self.read_file(full_path)
 
@@ -33,8 +33,20 @@ class MetricCalculator:
 
   def transform_joint(self, joint_matrix, total_joints):
     joints_shape = (total_joints, 3)
+    reshaped = np.reshape(joint_matrix, joints_shape)
 
-    return np.reshape(joint_matrix, joints_shape)
+    palm_center = reshaped[13]
+    x_palm, y_palm, z_palm = palm_center
+
+    print('reshaped before', reshaped)
+
+    for index, joint in enumerate(reshaped):
+      x, y, z = joint
+      reshaped[index] = [x - x_palm, y - y_palm, z - z_palm]
+
+    print('reshaped after', np.reshape(reshaped, -1))
+
+    return reshaped
 
   def calculate_mean_per_joint_position_error(self, gold_std_joints, comparison_joints):
     """

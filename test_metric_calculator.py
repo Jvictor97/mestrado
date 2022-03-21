@@ -139,13 +139,13 @@ class FetchJointsUnitTests(unittest.TestCase):
     self.date = '2022-08-03'
     os.makedirs(f'{self.folder}/{self.date}')
     
-    self.file_name = 'palmar_grasp.txt'
-    self.file_path = f'{self.folder}/{self.file_name}'
+    self.file_name = 'palmar_grasp'
+    self.file_path = f'{self.folder}/{self.file_name}.txt'
 
     np.savetxt(self.file_path, self.file_content, fmt='%.1f')
 
-    self.comparison_file_name = 'palmar_grasp.txt'
-    self.comparison_file_path = f'{self.folder}/{self.date}/{self.comparison_file_name}'
+    self.comparison_file_name = 'palmar_grasp'
+    self.comparison_file_path = f'{self.folder}/{self.date}/{self.comparison_file_name}.txt'
 
     np.savetxt(self.comparison_file_path, self.comparison_file_content, fmt='%.1f')
 
@@ -175,9 +175,30 @@ class FetchJointsUnitTests(unittest.TestCase):
 
 class MetricCalculatorFunctionalTests(unittest.TestCase):
   def setUp(self):
-    gold_standard_root_path = './awr/prediction/gold_standard'
-    comparison_root_path = './awr/prediction/follow_up/'
+    root = './test/awr/prediction/'
+    gold_standard_root_path = f'{root}/gold_standard/'
+    comparison_root_path = f'{root}/follow_up/'
+
     self.metric_calculator = MetricCalculator(gold_standard_root_path, comparison_root_path)
+ 
+  def test_should_return_zero_error_for_same_metrics(self):
+    grasp = 'finger-extension'
+    date = '2022-03-21'
+    total_joints = 14
+
+    distance = self.metric_calculator.calculate_metrics(grasp, date, total_joints)
+
+    self.assertEqual(distance, 0.0)
+
+  def test_should_return_gt_zero_error_for_different_metrics(self):
+    grasp = 'finger-extension'
+    date = '2022-03-22'
+    total_joints = 14
+
+    distance = self.metric_calculator.calculate_metrics(grasp, date, total_joints)
+    print('dist', distance)
+
+    self.assertGreater(distance, 0.0)
 
 
 if __name__ == '__main__':
