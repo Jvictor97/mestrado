@@ -2,6 +2,8 @@ import pyrealsense2 as rs
 import numpy as np
 import math
 import cv2
+from datetime import datetime
+from pathlib import Path
 
 pipeline = rs.pipeline()
 config = rs.config()
@@ -38,7 +40,9 @@ align_to = rs.stream.color
 align = rs.align(align_to)
 
 frame_count = 0
-dataset_root = './images/dataset'
+current_date = datetime.today().strftime('%Y-%m-%d')
+dataset_root = f'./images/dataset/{current_date}-2/'
+Path(dataset_root).mkdir(parents=True, exist_ok=True)
 centroids_file = open(f'{dataset_root}/centroids.txt', 'w+')
 
 def capture_depth_frame(depth_frame, centroid):
@@ -66,7 +70,18 @@ try:
         if not frames_are_valid:
             continue
 
-        depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        ## FILTERS
+        spatial = rs.spatial_filter()
+        spatial.set_option(rs.option.filter_magnitude, 5)
+        spatial.set_option(rs.option.filter_smooth_alpha, 1)
+        spatial.set_option(rs.option.filter_smooth_delta, 50)
+        filtered_depth = spatial.process(aligned_depth_frame)
+
+        hole_filling = rs.hole_filling_filter()
+        filled_depth = hole_filling.process(filtered_depth)
+
+        # depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        depth_image = np.asanyarray(filled_depth.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
         background_color = 0 # black
