@@ -1,6 +1,7 @@
 import requests
 from metric_calculator import MetricCalculator
 from datetime import datetime
+import math
 
 root = './results'
 g_std = f'{root}/gold_standard'
@@ -43,7 +44,7 @@ current_date = datetime.today().strftime('%Y-%m-%d')
 data = {
   'exercise': exercise,
   'date': current_date,
-  'metric': result
+  'metric': math.ceil(result)
 }
 
 save_response = requests.post(save_followup_url, data=data, headers=headers)
