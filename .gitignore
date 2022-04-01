@@ -4,3 +4,6 @@ center_test_refined.txt
 *.zip
 frame_*.txt
 centroids.txt
+results/
+*.pyc
+settings.json
