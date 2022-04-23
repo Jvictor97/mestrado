@@ -7,3 +7,4 @@ centroids.txt
 results/
 *.pyc
 settings.json
+real_time

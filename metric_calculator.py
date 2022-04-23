@@ -24,7 +24,7 @@ class MetricCalculator:
     return mean_per_joint_error
 
   def fetch_joints(self, root_path, grasp_name, date):
-    full_path =  f'{root_path}/{grasp_name}.txt' if date is None else f'{root_path}/{date}/{grasp_name}.txt'
+    full_path =  f'{root_path}/{grasp_name}/prediction.txt' if date is None else f'{root_path}/{date}/{grasp_name}/prediction.txt'
 
     return self.read_file(full_path)
 

@@ -3,14 +3,14 @@ from metric_calculator import MetricCalculator
 from datetime import datetime
 import math
 
-root = './results'
+root = './images/real_time'
 g_std = f'{root}/gold_standard'
 f_up = f'{root}/follow_up'
 exercise = 'extension'
 
 metric_calculator = MetricCalculator(g_std, f_up)
 
-result = metric_calculator.calculate_metrics(exercise, '2022-03-21', 14)
+result = metric_calculator.calculate_metrics(exercise, '2022-04-10', 14)
 print('O resultado é:', result)
 
 # auth
