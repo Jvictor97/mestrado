@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 from metric_calculator import MetricCalculator
 
 # arg parsing
-
 argument_parser = ArgumentParser()
 
 argument_parser.add_argument('exercise', help='nome do exercício que será realizado')
@@ -22,67 +21,54 @@ argument_parser.add_argument('-g', '--gold-standard',
 )
 
 arguments = argument_parser.parse_args()
-
 print('arguments', arguments)
-print('exercise', arguments.exercise)
-print('gold', arguments.gold_standard)
 
-current_date = datetime.today().strftime('%Y-%m-%d')
-
+# reading arguments
 is_gold_standard = arguments.gold_standard
-dataset_folder = 'gold_standard' if is_gold_standard else f'follow_up/{current_date}'
-
-exercise = arguments.exercise
-
 email = arguments.patient_email
 password = arguments.patient_password
-
-folder = f'./images/real_time/{dataset_folder}/{exercise}'
-
-Path(f'{folder}/input/').mkdir(parents=True, exist_ok=True)
-centroids_file = open(f'{folder}/input/centroids.txt', 'w+')
+exercise = arguments.exercise
 
 # realsense
+def config_camera():
+  pipeline = rs.pipeline()
+  config = rs.config()
 
-pipeline = rs.pipeline()
-config = rs.config()
+  pipeline_wrapper = rs.pipeline_wrapper(pipeline)
+  pipeline_profile = config.resolve(pipeline_wrapper)
+  device = pipeline_profile.get_device()
+  device_product_line = str(device.get_info(rs.camera_info.product_line))
 
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
-device_product_line = str(device.get_info(rs.camera_info.product_line))
+  width = 640
+  height = 480
+  frame_rate = 30
 
-width = 640
-height = 480
-frame_rate = 30
+  config.enable_stream(rs.stream.depth, width, height, rs.format.z16, frame_rate)
+  config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, frame_rate)
 
-config.enable_stream(rs.stream.depth, width, height, rs.format.z16, frame_rate)
-config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, frame_rate)
+  profile = pipeline.start(config)
 
-profile = pipeline.start(config)
+  depth_sensor = profile.get_device().first_depth_sensor()
+  depth_scale = depth_sensor.get_depth_scale()
+  print("Depth Scale is: ", depth_scale)
 
-depth_sensor = profile.get_device().first_depth_sensor()
-depth_scale = depth_sensor.get_depth_scale()
-print("Depth Scale is: ", depth_scale)
+  # We will be removing the background of objects more than
+  #  clipping_distance_in_meters meters away
+  clipping_distance_in_meters = 0.4
+  clipping_distance = clipping_distance_in_meters / depth_scale
 
-# We will be removing the background of objects more than
-#  clipping_distance_in_meters meters away
-clipping_distance_in_meters = 0.4
-clipping_distance = clipping_distance_in_meters / depth_scale
+  print('clipping_distance', clipping_distance)
 
-print('clipping_distance', clipping_distance)
+  # Create an align object
+  # rs.align allows us to perform alignment of depth frames to others frames
+  # The "align_to" is the stream type to which we plan to align depth frames.
+  align_to = rs.stream.color
+  align = rs.align(align_to)
 
-# Create an align object
-# rs.align allows us to perform alignment of depth frames to others frames
-# The "align_to" is the stream type to which we plan to align depth frames.
-align_to = rs.stream.color
-align = rs.align(align_to)
+  return pipeline, align, clipping_distance
 
-frame_count = 0
-
-def predict_joint_coordinates(frame, centroid):
-    global is_gold_standard, folder
-    base_url = 'http://2c91-34-69-182-218.ngrok.io'
+def predict_joint_coordinates(frame, centroid, folder):
+    base_url = 'http://5692-34-71-227-13.ngrok.io'
     url = f'{base_url}/calculate-joint-coordinates'
 
     json = {
@@ -92,15 +78,15 @@ def predict_joint_coordinates(frame, centroid):
 
     response = requests.post(url, json=json)
     if response.status_code != 200:
-      print('Deu ruim!')
+      print('Erro na chamada do AWR: ', response)
     else:
       prediction = np.array(response.json()['prediction'])
 
       np.savetxt(f'{folder}/prediction.txt', prediction)
 
-      calculate_metric()
       print_prediction(frame, prediction)
 
+      return prediction
 
 def print_prediction(frame, prediction):
   joints = np.reshape(prediction, (14, 3))
@@ -119,17 +105,18 @@ def print_prediction(frame, prediction):
   cv2.resizeWindow(window, 640, 480)
   cv2.imshow(window, img)
 
-def calculate_metric():
-  global exercise, current_date, email, password
+def calculate_metric(exercise, comparison_joints):
+  gold_std_path = f'./images/real_time/gold_standard/{exercise}/prediction.txt'
+  gold_standard_joints = np.loadtxt(gold_std_path)
 
-  gold_std_root_path = f'./images/real_time/gold_standard/'
-  follow_up_root_path = f'./images/real_time/follow_up/'
+  metric_calculator = MetricCalculator()
+  result = metric_calculator.calculate_metric_from_joints(gold_standard_joints, comparison_joints, 14)
 
-  metric_calculator = MetricCalculator(gold_std_root_path, follow_up_root_path)
-
-  result = metric_calculator.calculate_metrics(exercise, current_date, 14)
   print('O resultado é:', result)
 
+  return result
+
+def send_metric_to_web(metric, email, password):
   # auth
   base_url = 'http://localhost:3333'
 
@@ -156,12 +143,12 @@ def calculate_metric():
     'Authorization': f'Bearer {token}'
   }
 
-  current_date = datetime.today().strftime('%Y-%m-%d')
+  current_date = datetime.today().strftime('%Y-%m-%dT%H:%M:%SZ')
 
   data = {
     'exercise': exercise,
     'date': current_date,
-    'metric': math.ceil(result)
+    'metric': math.ceil(metric)
   }
 
   save_response = requests.post(save_followup_url, data=data, headers=headers)
@@ -169,20 +156,29 @@ def calculate_metric():
   print('save_response status', save_response.status_code)
   print('save_response body', save_response.json())
 
+def save_depth_frame(depth_frame, centroid, is_gold_standard, exercise):
+  dataset_folder = 'gold_standard' if is_gold_standard else 'follow_up'
+  folder = f'./images/real_time/{dataset_folder}/{exercise}'
 
-def capture_depth_frame(depth_frame, centroid):
-  global frame_count, centroids_file, folder
+  if not is_gold_standard:
+    current_date = datetime.today().strftime('%Y-%m-%dT%H.%M.%S')
+    folder += f'/{current_date}'
+
+  Path(f'{folder}/input/').mkdir(parents=True, exist_ok=True)
+  centroids_file = open(f'{folder}/input/centroids.txt', 'w+')
+
   print('centroid', centroid)
-  file_name = f'{folder}/input/frame_{frame_count}.txt'
+  file_name = f'{folder}/input/frame.txt'
+
   centroids_file.write('%.6f %.6f %.6f\n' % (centroid[0], centroid[1], centroid[2]))
-  centroids_file.flush()
+  centroids_file.close()
+
   np.savetxt(file_name, depth_frame, fmt='%.6f')
-  frame_count += 1
 
-  predict_joint_coordinates(depth_frame, centroid)
-
+  return folder
 
 try:
+  pipeline, align, clipping_distance = config_camera()
   while True:
     # Get frameset of color and depth
     frames = pipeline.wait_for_frames()
@@ -246,10 +242,17 @@ try:
 
     if key == keys['ENTER']:
       # captura frame para comparação
-      capture_depth_frame(depth_image.copy(), [center_x, center_y, center_z * 1000])
+      depth_frame = depth_image.copy()
+      centroid = [center_x, center_y, center_z * 1000]
+  
+      folder_saved = save_depth_frame(depth_frame, centroid, is_gold_standard, exercise)
+      comparison_joints = predict_joint_coordinates(depth_frame, centroid, folder_saved)
+
+      if not is_gold_standard:
+        metric = calculate_metric(exercise, comparison_joints)
+        send_metric_to_web(metric, email, password)
     elif key == keys['ESC']:
       cv2.destroyAllWindows()
       break
 finally:
-  centroids_file.close()
   pipeline.stop()

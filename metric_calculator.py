@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 class MetricCalculator:
-  def __init__(self, gold_standard_root_path, comparison_root_path):
+  def __init__(self, gold_standard_root_path="", comparison_root_path=""):
     self.gold_standard_root_path = gold_standard_root_path
     self.comparison_root_path = comparison_root_path
     self.gold_standard = {}
@@ -15,7 +15,18 @@ class MetricCalculator:
     """
     gold_std_joints = self.fetch_joints(self.gold_standard_root_path, grasp_name, None)
     comparison_joints = self.fetch_joints(self.comparison_root_path, grasp_name, date)
+
+    mean_per_joint_error = self.calculate_metric_from_joints(gold_std_joints, comparison_joints, total_joints)
     
+    return mean_per_joint_error
+    
+
+  def calculate_metric_from_joints(self, gold_std_joints, comparison_joints, total_joints):
+    """
+      gold_std_joints: Array of joint coordinates for gold standard (42 positions)
+      comparison_joints: Array of joint coordinates for comparison (42 positions)
+      total_joints: int (default: 14)
+    """
     gold_t = self.transform_joint(gold_std_joints, total_joints)
     comparison_t = self.transform_joint(comparison_joints, total_joints)
     
