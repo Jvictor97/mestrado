@@ -8,3 +8,4 @@ results/
 *.pyc
 settings.json
 real_time
+venv/
