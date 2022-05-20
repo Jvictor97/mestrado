@@ -1,40 +1,58 @@
 import sys
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QIcon, QPalette, QColor
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
   QApplication, 
   QWidget, 
   QFormLayout, 
   QVBoxLayout, 
   QHBoxLayout,
-  QPushButton,
   QDialogButtonBox,
   QLineEdit, 
   QLabel,
   QRadioButton,
-  QMessageBox
+  QMessageBox,
+  QGroupBox,
 )
-
-def clicked():
-  print('clicou!')
-
+from main import runExerciseRecorder
 
 class MainWindow(QWidget):
-  def __init__(self):
-    super().__init__()
+  def __init__(self, parent=None):
+    super().__init__(parent)
 
     # QWidget { background-color: #262626; color: white }
     # QLineEdit { border: 1px solid white }
     self.setStyleSheet("""
-      QLineEdit { height: 30px; border-radius: 5px; padding: 1px 3px }
+      QLineEdit { height: 30px; padding: 1px 10px; }
       QLabel { font-size: 16px }
     """)
     self.setMinimumWidth(500)
+    self.move(2500, 400)
     self.setup()
 
   def setup(self):
     self.setWindowTitle('Neuropróteses - Sistema de Monitoramento de Progresso')
-
+    self.setWindowIcon(QIcon('icon.png'))
     self.setupInnerLayout()
+
+  def handleClick(self):
+    parameters = {
+      'gold_standard': self.gold_standard_radio.isChecked(),
+      'patient_email': self.patient_email_edit.text(),
+      'patient_password': self.patient_password_edit.text(),
+      'exercise': self.exercise_edit.text(),
+      'hand_side': 'left' if self.left_hand_side.isChecked() else 'right'
+    }
+
+    self.hide()
+    runExerciseRecorder(
+      fromCLI=False, 
+      parameters=parameters, 
+      handleClose=self.handleRecorderClose
+    )
+
+  def handleRecorderClose(self):
+    self.show()
 
   def setupInnerLayout(self):
     # Setup main layout
@@ -49,17 +67,17 @@ class MainWindow(QWidget):
     patient_form_layout = QFormLayout()
     main_layout.addLayout(patient_form_layout)
 
-    patient_email_label = QLabel('Email')
-    patient_email_edit = QLineEdit()
-    patient_email_edit.setPlaceholderText('jose@gmail.com')
+    patient_email_label = QLabel('Email:')
+    self.patient_email_edit = QLineEdit()
+    self.patient_email_edit.setPlaceholderText('jose@gmail.com')
 
-    patient_password_label = QLabel('Senha')
-    patient_password_edit = QLineEdit()
-    patient_password_edit.setPlaceholderText('********')
-    patient_password_edit.setEchoMode(QLineEdit.Password)
+    patient_password_label = QLabel('Senha:')
+    self.patient_password_edit = QLineEdit()
+    self.patient_password_edit.setPlaceholderText('********')
+    self.patient_password_edit.setEchoMode(QLineEdit.Password)
 
-    patient_form_layout.addRow(patient_email_label, patient_email_edit)
-    patient_form_layout.addRow(patient_password_label, patient_password_edit)
+    patient_form_layout.addRow(patient_email_label, self.patient_email_edit)
+    patient_form_layout.addRow(patient_password_label, self.patient_password_edit)
 
     # Setup layout for exercise data
     options_label = QLabel('Dados do Monitoramento')
@@ -69,11 +87,11 @@ class MainWindow(QWidget):
     app_form_layout = QFormLayout()
     main_layout.addLayout(app_form_layout)
 
-    exercise_label = QLabel('Exercício')
-    exercise_edit = QLineEdit()
-    exercise_edit.setPlaceholderText('ex: open-hand, finger-extension, ...')
+    exercise_label = QLabel('Exercício:')
+    self.exercise_edit = QLineEdit()
+    self.exercise_edit.setPlaceholderText('ex: open-hand, finger-extension, ...')
 
-    app_form_layout.addRow(exercise_label, exercise_edit)
+    app_form_layout.addRow(exercise_label, self.exercise_edit)
 
     # Setup config layout
     options_label = QLabel('Configurações')
@@ -85,29 +103,37 @@ class MainWindow(QWidget):
 
     ## Lado da mão
     hand_radio_layout = QVBoxLayout()
-    options_layout.addLayout(hand_radio_layout)
 
-    hand_radio_title = QLabel('Mão capturada')
-    hand_radio_layout.addWidget(hand_radio_title)
+    hand_radio_group = QGroupBox('Mão capturada')
+    self.left_hand_side = QRadioButton('Esquerda')
+    self.left_hand_side.setChecked(True)
+    self.right_hand_side = QRadioButton('Direita')
 
-    left_hand_side = QRadioButton('Esquerda')
-    right_hand_side = QRadioButton('Direita')
+    hand_radio_layout.addWidget(self.left_hand_side)
+    hand_radio_layout.addWidget(self.right_hand_side)
 
-    hand_radio_layout.addWidget(left_hand_side)
-    hand_radio_layout.addWidget(right_hand_side)
+    hand_radio_group.setLayout(hand_radio_layout)
+
+    options_layout.addWidget(hand_radio_group)
 
     ## Gold Standard ou Follow Up?
     monitoring_type_layout = QVBoxLayout()
-    options_layout.addLayout(monitoring_type_layout)
+    # options_layout.addLayout(monitoring_type_layout)
 
-    monitoring_type_label = QLabel('Tipo de captura')
-    monitoring_type_layout.addWidget(monitoring_type_label)
+    # monitoring_type_label = QLabel('Tipo de captura')
+    # monitoring_type_layout.addWidget(monitoring_type_label)
 
-    gold_standard_radio = QRadioButton('Padrão-ouro')
-    follow_up_radio = QRadioButton('Acompanhamento')
+    monitoring_type_group = QGroupBox('Tipo de captura')
+    self.gold_standard_radio = QRadioButton('Padrão-ouro')
+    self.gold_standard_radio.setChecked(True)
+    self.follow_up_radio = QRadioButton('Acompanhamento')
 
-    monitoring_type_layout.addWidget(gold_standard_radio)
-    monitoring_type_layout.addWidget(follow_up_radio)
+    monitoring_type_layout.addWidget(self.gold_standard_radio)
+    monitoring_type_layout.addWidget(self.follow_up_radio)
+
+    monitoring_type_group.setLayout(monitoring_type_layout)
+
+    options_layout.addWidget(monitoring_type_group)
 
     # Botões
     button_box = QDialogButtonBox()
@@ -117,12 +143,12 @@ class MainWindow(QWidget):
 
     start_button, cancel_button = button_box.buttons()
 
-    start_button.clicked.connect(clicked)
-    cancel_button.clicked.connect(self.close_app)
+    start_button.clicked.connect(self.handleClick)
+    cancel_button.clicked.connect(self.closeApp)
 
     main_layout.addWidget(button_box)
 
-  def close_app(self):
+  def closeApp(self):
     QApplication.instance().quit()
 
   def closeEvent(self, event: QCloseEvent):
@@ -148,6 +174,30 @@ class MainWindow(QWidget):
 
 def run():
   app = QApplication(sys.argv)
+
+  # Force the style to be the same on all OSs:
+  app.setStyle("Fusion")
+
+  # Now use a palette to switch to dark colors:
+  palette = QPalette()
+
+  palette.setColor(QPalette.Window, QColor(53, 53, 53))
+  palette.setColor(QPalette.WindowText, Qt.white)
+  palette.setColor(QPalette.Base, QColor(25, 25, 25))
+  palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+  palette.setColor(QPalette.ToolTipBase, Qt.black)
+  palette.setColor(QPalette.ToolTipText, Qt.white)
+  palette.setColor(QPalette.Text, Qt.white)
+  palette.setColor(QPalette.Button, QColor(53, 53, 53))
+  palette.setColor(QPalette.ButtonText, Qt.white)
+  palette.setColor(QPalette.BrightText, Qt.red)
+  palette.setColor(QPalette.Link, QColor(42, 130, 218))
+  palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+  palette.setColor(QPalette.HighlightedText, Qt.black)
+
+  palette.setColor(QPalette.PlaceholderText, QColor('gray'))
+  app.setPalette(palette)
+
   window = MainWindow()
   window.show()
 
