@@ -1,1 +1,1 @@
-pyinstaller .\gui.py --onefile --noconsole --name "monitor-de-progresso"
+pyinstaller .\gui.py --onefile --noconsole --name "monitor-de-progresso" -i .\icon.png
