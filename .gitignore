@@ -9,3 +9,6 @@ results/
 settings.json
 real_time
 venv/
+*.spec
+build/
+dist/

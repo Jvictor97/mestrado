@@ -1,0 +1,1 @@
+pyinstaller .\gui.py --onefile --noconsole --name "monitor-de-progresso"
