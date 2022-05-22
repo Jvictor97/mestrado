@@ -14,6 +14,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
   email = None
   password = None
   exercise = None
+  is_left_hand = None
 
 
   if fromCLI:
@@ -21,6 +22,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
     argument_parser = ArgumentParser()
 
     argument_parser.add_argument('exercise', help='nome do exercício que será realizado')
+    argument_parser.add_argument('hand_side', help='Mão que será utilizada na captura (esquerda/direita)')
     argument_parser.add_argument('patient_email', help='email do paciente usado para login no sistema web')
     argument_parser.add_argument('patient_password', help='senha do paciente usado para login no sistema web')
     argument_parser.add_argument('-g', '--gold-standard', 
@@ -37,6 +39,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
     email = arguments.patient_email
     password = arguments.patient_password
     exercise = arguments.exercise
+    is_left_hand = arguments.hand_side == 'esquerda'
   else:
     print('reading from parameters', parameters)
     # reading parameters
@@ -44,6 +47,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
     email = parameters['patient_email']
     password = parameters['patient_password']
     exercise = parameters['exercise']
+    is_left_hand = parameters['hand_side'] == 'left'
   
 
   # realsense
@@ -84,13 +88,14 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
 
     return pipeline, align, clipping_distance
 
-  def predict_joint_coordinates(frame, centroid, folder):
-      base_url = 'http://585c-34-121-83-229.ngrok.io'
+  def predict_joint_coordinates(frame, centroid, is_left_hand, folder):
+      base_url = 'http://ac6a-34-150-248-147.ngrok.io'
       url = f'{base_url}/calculate-joint-coordinates'
 
       json = {
         'frame': frame.tolist(),
-        'centroid': centroid
+        'centroid': centroid,
+        'is_left_hand': is_left_hand
       }
 
       response = requests.post(url, json=json)
@@ -101,13 +106,17 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
 
         np.savetxt(f'{folder}/prediction.txt', prediction)
 
-        print_prediction(frame, prediction)
+        print_prediction(frame, prediction, is_left_hand)
 
         return prediction
 
-  def print_prediction(frame, prediction):
+  def print_prediction(frame, prediction, is_left_hand):
     joints = np.reshape(prediction, (14, 3))
-    img = np.flip(frame, 1)
+
+    if is_left_hand:
+      img = np.flip(frame, 1)
+    else:
+      img = frame
 
     img = cv2.applyColorMap(cv2.convertScaleAbs(img, alpha=0.03), cv2.COLORMAP_JET)
 
@@ -263,7 +272,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
         centroid = [center_x, center_y, center_z * 1000]
     
         folder_saved = save_depth_frame(depth_frame, centroid, is_gold_standard, exercise)
-        comparison_joints = predict_joint_coordinates(depth_frame, centroid, folder_saved)
+        comparison_joints = predict_joint_coordinates(depth_frame, centroid, is_left_hand, folder_saved)
 
         if not is_gold_standard:
           metric = calculate_metric(exercise, comparison_joints)
