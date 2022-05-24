@@ -1,11 +1,15 @@
 import numpy as np
 import math
 import cv2
+import os
 from datetime import datetime
 from pathlib import Path
 import requests
 from argparse import ArgumentParser
 from metric_calculator import MetricCalculator
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None):
   import pyrealsense2 as rs
@@ -89,7 +93,11 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
     return pipeline, align, clipping_distance
 
   def predict_joint_coordinates(frame, centroid, is_left_hand, folder):
-      base_url = 'http://ac6a-34-150-248-147.ngrok.io'
+      base_url = os.getenv('AWR_URL')
+
+      if not base_url:
+        print('Crie um arquivo .env com a variável AWR_URL!!!')
+
       url = f'{base_url}/calculate-joint-coordinates'
 
       json = {
@@ -124,7 +132,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
       x, y, z = joint
       center_x = math.ceil(x)
       center_y = math.ceil(y)
-      img = cv2.circle(img, center=(center_x, center_y), radius=2, color=(0, 0, 255), thickness=-1)
+      img = cv2.circle(img, center=(center_x, center_y), radius=4, color=(0, 0, 255), thickness=-1)
 
     window = f'frame.txt'
     cv2.namedWindow(window, cv2.WINDOW_NORMAL)

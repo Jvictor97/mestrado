@@ -27,7 +27,6 @@ class MainWindow(QWidget):
       QLabel { font-size: 16px }
     """)
     self.setMinimumWidth(500)
-    self.move(2500, 400)
     self.setup()
 
   def setup(self):
