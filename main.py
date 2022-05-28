@@ -66,7 +66,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
 
     width = 640
     height = 480
-    frame_rate = 30
+    frame_rate = 60
 
     config.enable_stream(rs.stream.depth, width, height, rs.format.z16, frame_rate)
     config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, frame_rate)
@@ -199,7 +199,7 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
       folder += f'/{current_date}'
 
     Path(f'{folder}/input/').mkdir(parents=True, exist_ok=True)
-    centroids_file = open(f'{folder}/input/centroids.txt', 'w+')
+    centroids_file = open(f'{folder}/input/centroid.txt', 'w+')
 
     print('centroid', centroid)
     file_name = f'{folder}/input/frame.txt'
@@ -211,8 +211,8 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
 
     return folder
 
+  pipeline, align, clipping_distance = config_camera()
   try:
-    pipeline, align, clipping_distance = config_camera()
     while True:
       # Get frameset of color and depth
       frames = pipeline.wait_for_frames()
@@ -224,6 +224,9 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
       # aligned_depth_frame is a 640x480 depth image
       aligned_depth_frame = aligned_frames.get_depth_frame()
       color_frame = aligned_frames.get_color_frame()
+
+      distance = aligned_depth_frame.get_distance(320, 240)
+      print('distance in cm: %.2f\r' % distance * 100, end='\r')
 
       frames_are_valid = aligned_depth_frame and color_frame
       if not frames_are_valid:
@@ -289,6 +292,8 @@ def runExerciseRecorder(fromCLI=False, parameters={}, handleClose=lambda : None)
         cv2.destroyAllWindows()
         handleClose()
         break
+  except Exception as e:
+    print('Error during processing:', e)
   finally:
     pipeline.stop()
 
